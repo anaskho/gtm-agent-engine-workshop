@@ -22,6 +22,20 @@ __all__ = [
 # Built prospect profiles are cached in memory (keyed by prospect_id) so repeat
 # lookups within a run are served without rebuilding.
 _PROFILES = {}
+PROSPECT_PROFILE_FIELDS = (
+    "prospect_id",
+    "name",
+    "account_details",
+    "annual_revenue",
+    "tech_stack",
+    "engagement_history",
+)
+
+
+def sanitize_prospect_profile(profile):
+    if profile is None:
+        return None
+    return {field: profile[field] for field in PROSPECT_PROFILE_FIELDS if field in profile}
 
 # ---------------------------------------------------------------------------
 # Public data-access functions
@@ -63,13 +77,16 @@ def fetch_tech_stack(prospect_id):
 @traceable(run_type="tool", name="get_profile_from_db")
 def get_profile_from_db(prospect_id):
     "Look up a stored prospect profile. Returns {'prospect_profile': record|None}."
-    return {"prospect_profile": _PROFILES.get(prospect_id)}
+    profile = sanitize_prospect_profile(_PROFILES.get(prospect_id))
+    if profile is not None:
+        _PROFILES[prospect_id] = profile
+    return {"prospect_profile": profile}
 
 
 @traceable(run_type="tool", name="save_profile_to_db")
 def save_profile_to_db(prospect_id, profile):
     "Persist a prospect profile to the profile store."
-    _PROFILES[prospect_id] = profile
+    _PROFILES[prospect_id] = sanitize_prospect_profile(profile)
     return {"saved": True}
 
 def update_prospect_info(prospect_id, technology):
